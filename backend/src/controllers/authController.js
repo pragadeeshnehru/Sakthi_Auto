@@ -10,7 +10,7 @@ const generateToken = (userId) => {
 const login = async (req, res) => {
   try {
     const { employeeNumber, otp } = req.body;
-
+    
     // Simple OTP validation (in production, use proper OTP service)
     if (otp !== '1234') {
       return res.status(401).json({

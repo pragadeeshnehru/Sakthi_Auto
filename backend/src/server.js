@@ -32,13 +32,15 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// CORS configuration
 const corsOptions = {
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:8081', 'http://localhost:19006'],
+  origin: ['http://localhost:8081', 'http://192.168.1.10:8081'], // Allow RN dev server & emulator
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-  optionsSuccessStatus: 200
 };
+
 app.use(cors(corsOptions));
+
 
 // Compression middleware
 app.use(compression());
@@ -92,12 +94,12 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = 6000;
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  // console.log(`🔗 http://localhost:${PORT}/health`);
 });
 
 module.exports = app;

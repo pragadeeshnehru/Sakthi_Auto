@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import {
   View,
   StyleSheet,
@@ -19,6 +20,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useUser } from '../context/UserContext';
 import { theme, spacing } from '../utils/theme';
+import { API_BASE_URL } from '../utils/api';
 
 export default function LoginScreen() {
   const [employeeNumber, setEmployeeNumber] = useState('');
@@ -32,13 +34,32 @@ export default function LoginScreen() {
       return;
     }
 
+    console.log('Attempting login with:', { employeeNumber, otp });
     setLoading(true);
-    const success = await login(employeeNumber, otp);
-    setLoading(false);
 
-    if (!success) {
-      Alert.alert('Error', 'Invalid credentials. Try:\n• Employee: 12345, 67890, or 11111\n• OTP: 1234');
+    try {
+      const res = await axios.post("192.168.253.152:6000/api/auth/login", {
+        employeeNumber,
+        otp,
+      });
+
+      console.log('Login response:', res.data);
+
+      // Optional: Pass response data to login context if needed
+      login(res.data); // Assuming your context login handles storing user
+
+      setLoading(false);
+    } catch (error) {
+      setLoading(false);
+
+      if (error.response) {
+        Alert.alert('Error', error.response.data?.message || 'Login failed.');
+      } else {
+        Alert.alert('Network Error', 'Unable to reach the server. Please check your connection and API URL.');
+      }
     }
+
+
   };
 
   return (

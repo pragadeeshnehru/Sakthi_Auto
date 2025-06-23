@@ -1,7 +1,9 @@
+require('dotenv').config({ path: '../../.env' });
 const mongoose = require('mongoose');
 
 const connectDB = async () => {
-  try {
+  console.log('Connecting to MongoDB...');
+    try {
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
@@ -30,5 +32,7 @@ const connectDB = async () => {
     process.exit(1);
   }
 };
+
+// connectDB();
 
 module.exports = connectDB;
