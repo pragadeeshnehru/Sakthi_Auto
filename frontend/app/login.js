@@ -37,7 +37,7 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      const response = await api.post('http://192.168.253.142:3000/api/auth/login', {
+      const response = await api.post('/api/auth/login', {
         employeeNumber,
         otp,
       });

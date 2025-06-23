@@ -33,7 +33,13 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 const corsOptions = {
-  origin: ['http://localhost:8081', 'http://192.168.1.10:8081'], // Allow RN dev server & emulator
+  // Update local IP addresses and ports as needed
+  origin: [
+    'http://192.168.115.228:8081', 
+    'http://localhost:8081',
+    'http://localhost:19006',
+    'http://192.168.115.228:19006'
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -96,10 +102,9 @@ app.use((err, req, res, next) => {
 
 const PORT = 3000;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-  // console.log(`🔗 http://localhost:${PORT}/health`);
 });
+
 
 module.exports = app;
