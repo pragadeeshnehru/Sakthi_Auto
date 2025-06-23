@@ -70,7 +70,7 @@ export default function ProfileScreen() {
 
   if (!user) return null;
 
-  const userIdeas = ideas.filter(idea => idea.submittedBy === user.employeeNumber);
+  const userIdeas = ideas.filter(idea => idea.submittedBy?.employeeNumber === user.employeeNumber);
   const approvedIdeas = userIdeas.filter(idea => idea.status === 'approved');
   const implementedIdeas = userIdeas.filter(idea => idea.status === 'implementing');
   
@@ -88,13 +88,14 @@ export default function ProfileScreen() {
   };
 
   const formatJoinDate = () => {
-    // Mock join date for demo
-    const joinDate = new Date();
-    joinDate.setMonth(joinDate.getMonth() - 6);
-    return joinDate.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-    });
+    if (user.createdAt) {
+      const joinDate = new Date(user.createdAt);
+      return joinDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+      });
+    }
+    return '';
   };
 
   return (

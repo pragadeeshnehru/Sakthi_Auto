@@ -29,15 +29,6 @@ const DEPARTMENT_FILTERS = [
   { value: 'Administration', label: 'Administration' },
 ];
 
-const MOCK_USERS = [
-  { employeeNumber: '12345', name: 'John Doe', department: 'Engineering' },
-  { employeeNumber: '67890', name: 'Jane Smith', department: 'Quality' },
-  { employeeNumber: '11111', name: 'Admin User', department: 'Management' },
-  { employeeNumber: '22222', name: 'Alice Johnson', department: 'Manufacturing' },
-  { employeeNumber: '33333', name: 'Bob Wilson', department: 'Engineering' },
-  { employeeNumber: '44444', name: 'Carol Brown', department: 'Quality' },
-];
-
 export default function ImplementedScreen() {
   const { ideas } = useIdeas();
   const [searchQuery, setSearchQuery] = useState('');
@@ -91,10 +82,8 @@ export default function ImplementedScreen() {
     });
   };
 
-  const getUserName = (employeeNumber) => {
-    const user = MOCK_USERS.find(u => u.employeeNumber === employeeNumber);
-    return user ? user.name : 'Unknown User';
-  };
+  const getUserName = (submittedBy) => submittedBy?.name || 'Unknown User';
+  const getUserDept = (submittedBy) => submittedBy?.department || '';
 
   const renderIdeaCard = ({ item }) => (
     <Card style={styles.ideaCard}>
@@ -125,7 +114,7 @@ export default function ImplementedScreen() {
                 {getUserName(item.submittedBy)}
               </Text>
               <Text variant="bodySmall" style={styles.submitterDept}>
-                {item.department}
+                {getUserDept(item.submittedBy)}
               </Text>
             </View>
           </View>
@@ -156,7 +145,7 @@ export default function ImplementedScreen() {
               color={theme.colors.onSurfaceVariant} 
             />
             <Text variant="bodySmall" style={styles.metadataText}>
-              Submitted: {formatDate(item.submittedDate)}
+              Submitted: {item.createdAt ? formatDate(item.createdAt) : ''}
             </Text>
           </View>
           
@@ -173,7 +162,7 @@ export default function ImplementedScreen() {
             </View>
           )}
         </View>
-
+        
         {item.status === 'implemented' && (
           <View style={styles.implementedBanner}>
             <MaterialIcons 

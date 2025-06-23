@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../utils/api';
 
 const IdeaContext = createContext();
 
@@ -19,7 +19,7 @@ const ideaReducer = (state, action) => {
       return {
         ...state,
         ideas: state.ideas.map(idea =>
-          idea.id === action.payload.id ? action.payload : idea
+          idea._id === action.payload._id ? action.payload : idea
         ),
       };
     case 'SET_LOADING':
@@ -47,42 +47,8 @@ export const IdeaProvider = ({ children }) => {
   const loadIdeas = async () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      const storedIdeas = await AsyncStorage.getItem('ideas');
-      if (storedIdeas) {
-        dispatch({ type: 'SET_IDEAS', payload: JSON.parse(storedIdeas) });
-      } else {
-        // Load mock data
-        const mockIdeas = [
-          {
-            id: '1',
-            title: 'Improve Assembly Line Efficiency',
-            problem: 'Current assembly line has bottlenecks causing delays',
-            improvement: 'Reorganize workstations and implement lean principles',
-            benefit: 'Productivity',
-            estimatedSavings: 50000,
-            department: 'Manufacturing',
-            submittedBy: '12345',
-            submittedDate: '2024-01-15',
-            status: 'approved',
-            images: [],
-          },
-          {
-            id: '2',
-            title: 'Digital Document Management',
-            problem: 'Paper-based filing system is inefficient',
-            improvement: 'Implement digital document management system',
-            benefit: 'Cost saving',
-            estimatedSavings: 25000,
-            department: 'Administration',
-            submittedBy: '12345',
-            submittedDate: '2024-01-10',
-            status: 'under_review',
-            images: [],
-          },
-        ];
-        dispatch({ type: 'SET_IDEAS', payload: mockIdeas });
-        await AsyncStorage.setItem('ideas', JSON.stringify(mockIdeas));
-      }
+      const res = await api.get('http://192.168.253.142:3000/api/ideas');
+      dispatch({ type: 'SET_IDEAS', payload: res.data.data.ideas });
     } catch (error) {
       console.error('Error loading ideas:', error);
     } finally {
@@ -91,36 +57,56 @@ export const IdeaProvider = ({ children }) => {
   };
 
   const submitIdea = async (ideaData) => {
-    const newIdea = {
-      id: Date.now().toString(),
-      ...ideaData,
-      submittedDate: new Date().toISOString().split('T')[0],
-      status: 'under_review',
-    };
-
-    dispatch({ type: 'ADD_IDEA', payload: newIdea });
-    
-    const updatedIdeas = [newIdea, ...state.ideas];
-    await AsyncStorage.setItem('ideas', JSON.stringify(updatedIdeas));
-    
-    return newIdea;
+    try {
+      const res = await api.post('http://192.168.253.142:3000/api/ideas', ideaData);
+      await loadIdeas();
+      return res.data.data.idea;
+    } catch (error) {
+      console.error('Error submitting idea:', error);
+      throw error;
+    }
   };
 
-  const updateIdeaStatus = async (ideaId, status) => {
-    const updatedIdea = state.ideas.find(idea => idea.id === ideaId);
-    if (updatedIdea) {
-      updatedIdea.status = status;
-      dispatch({ type: 'UPDATE_IDEA', payload: updatedIdea });
-      await AsyncStorage.setItem('ideas', JSON.stringify(state.ideas));
+  const updateIdeaStatus = async (ideaId, statusData) => {
+    try {
+      const res = await api.put(`http://192.168.253.142:3000/api/ideas/${ideaId}/status`, statusData);
+      dispatch({ type: 'UPDATE_IDEA', payload: res.data.data.idea });
+      return res.data.data.idea;
+    } catch (error) {
+      console.error('Error updating idea status:', error);
+      throw error;
+    }
+  };
+
+  const editIdea = async (ideaId, updatedData) => {
+    try {
+      const res = await api.put(`http://192.168.253.142:3000/api/ideas/${ideaId}`, updatedData);
+      await loadIdeas();
+      return res.data.data.idea;
+    } catch (error) {
+      console.error('Error editing idea:', error);
+      throw error;
+    }
+  };
+
+  const deleteIdea = async (ideaId) => {
+    try {
+      await api.delete(`http://192.168.253.142:3000/api/ideas/${ideaId}`);
+      await loadIdeas();
+    } catch (error) {
+      console.error('Error deleting idea:', error);
+      throw error;
     }
   };
 
   return (
-    <IdeaContext.Provider value={{ 
-      ...state, 
-      submitIdea, 
+    <IdeaContext.Provider value={{
+      ...state,
+      submitIdea,
       updateIdeaStatus,
-      loadIdeas 
+      loadIdeas,
+      editIdea,
+      deleteIdea
     }}>
       {children}
     </IdeaContext.Provider>

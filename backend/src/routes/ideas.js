@@ -7,7 +7,9 @@ const {
   getMyIdeas,
   getIdeaById,
   updateIdeaStatus,
-  getIdeaStats
+  getIdeaStats,
+  updateIdea,
+  deleteIdea
 } = require('../controllers/ideaController');
 
 const router = express.Router();
@@ -46,5 +48,15 @@ router.put('/:id/status',
   validateRequest(schemas.updateIdeaStatus), 
   updateIdeaStatus
 );
+
+// @route   PUT /api/ideas/:id
+// @desc    Update an idea (edit)
+// @access  Private (Owner)
+router.put('/:id', auth, updateIdea);
+
+// @route   DELETE /api/ideas/:id
+// @desc    Delete an idea (soft delete)
+// @access  Private (Owner)
+router.delete('/:id', auth, deleteIdea);
 
 module.exports = router;

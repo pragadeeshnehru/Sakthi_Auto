@@ -129,14 +129,27 @@ export default function SubmitIdeaScreen() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      await submitIdea(formData);
+      // Build the payload with only required fields
+      const payload = {
+        title: formData.title,
+        problem: formData.problem,
+        improvement: formData.improvement,
+        benefit: formData.benefit,
+        department: formData.department,
+      };
+      // Add optional fields if present
+      if (formData.estimatedSavings) payload.estimatedSavings = Number(formData.estimatedSavings);
+      if (formData.tags) payload.tags = formData.tags;
+      // (images upload is not handled here, so skip for now)
+
+      await submitIdea(payload);
       Alert.alert(
         'Success!', 
         'Your idea has been submitted successfully and is now under review.',
         [{ text: 'OK', onPress: () => router.push('tracker') }]
       );
     } catch (error) {
-      Alert.alert('Error', 'Failed to submit idea. Please try again.');
+      Alert.alert('Error', 'Failed to submit idea. Please check your input and try again.');
     } finally {
       setLoading(false);
     }

@@ -271,11 +271,54 @@ const getIdeaStats = async (req, res) => {
   }
 };
 
+const updateIdea = async (req, res) => {
+  try {
+    const allowedFields = [
+      'title', 'problem', 'improvement', 'benefit', 'department', 'estimatedSavings', 'tags'
+    ];
+    const updates = {};
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    });
+    const idea = await Idea.findOneAndUpdate(
+      { _id: req.params.id, submittedBy: req.user._id },
+      updates,
+      { new: true, runValidators: true }
+    );
+    if (!idea) {
+      return res.status(404).json({ success: false, message: 'Idea not found or not authorized' });
+    }
+    res.json({ success: true, message: 'Idea updated successfully', data: { idea } });
+  } catch (error) {
+    console.error('Update idea error:', error);
+    res.status(500).json({ success: false, message: 'Server error while updating idea' });
+  }
+};
+
+const deleteIdea = async (req, res) => {
+  try {
+    const idea = await Idea.findOneAndUpdate(
+      { _id: req.params.id, submittedBy: req.user._id },
+      { isActive: false },
+      { new: true }
+    );
+    if (!idea) {
+      return res.status(404).json({ success: false, message: 'Idea not found or not authorized' });
+    }
+    res.json({ success: true, message: 'Idea deleted successfully' });
+  } catch (error) {
+    console.error('Delete idea error:', error);
+    res.status(500).json({ success: false, message: 'Server error while deleting idea' });
+  }
+};
+
 module.exports = {
   createIdea,
   getIdeas,
   getMyIdeas,
   getIdeaById,
   updateIdeaStatus,
-  getIdeaStats
+  getIdeaStats,
+  updateIdea,
+  deleteIdea,
 };

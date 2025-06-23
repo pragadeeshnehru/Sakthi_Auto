@@ -14,6 +14,11 @@ import {
   Badge,
   Menu,
   Divider,
+  Modal,
+  Portal,
+  Dialog,
+  Provider as PaperProvider,
+  TextInput,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -31,12 +36,23 @@ const STATUS_FILTERS = [
 
 export default function TrackerScreen() {
   const { user } = useUser();
-  const { ideas } = useIdeas();
+  const { ideas, editIdea, deleteIdea, loadIdeas } = useIdeas();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [menuVisible, setMenuVisible] = useState(false);
 
-  const userIdeas = ideas.filter(idea => idea.submittedBy === user?.employeeNumber);
+  // Edit modal state
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editIdeaData, setEditIdeaData] = useState(null);
+  const [editForm, setEditForm] = useState({ title: '', problem: '', benefit: '', estimatedSavings: '' });
+  const [editLoading, setEditLoading] = useState(false);
+
+  // Delete dialog state
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [deleteIdeaId, setDeleteIdeaId] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const userIdeas = ideas.filter(idea => idea.submittedBy?.employeeNumber === user?.employeeNumber);
   
   const filteredIdeas = userIdeas.filter(idea => {
     const matchesSearch = idea.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -81,6 +97,53 @@ export default function TrackerScreen() {
     });
   };
 
+  const openEditModal = (idea) => {
+    setEditIdeaData(idea);
+    setEditForm({
+      title: idea.title,
+      problem: idea.problem,
+      benefit: idea.benefit,
+      estimatedSavings: idea.estimatedSavings ? String(idea.estimatedSavings) : '',
+    });
+    setEditModalVisible(true);
+  };
+
+  const handleEditChange = (field, value) => {
+    setEditForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleEditSubmit = async () => {
+    setEditLoading(true);
+    try {
+      await editIdea(editIdeaData._id, {
+        ...editForm,
+        estimatedSavings: editForm.estimatedSavings ? Number(editForm.estimatedSavings) : undefined,
+      });
+      setEditModalVisible(false);
+    } catch (e) {
+      // Optionally show error
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const openDeleteDialog = (ideaId) => {
+    setDeleteIdeaId(ideaId);
+    setDeleteDialogVisible(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    setDeleteLoading(true);
+    try {
+      await deleteIdea(deleteIdeaId);
+      setDeleteDialogVisible(false);
+    } catch (e) {
+      // Optionally show error
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const renderIdeaCard = ({ item }) => (
     <Card style={styles.ideaCard}>
       <Card.Content>
@@ -121,7 +184,7 @@ export default function TrackerScreen() {
               color={theme.colors.onSurfaceVariant} 
             />
             <Text variant="bodySmall" style={styles.metadataText}>
-              {formatDate(item.submittedDate)}
+              {item.createdAt ? formatDate(item.createdAt) : ''}
             </Text>
           </View>
         </View>
@@ -145,6 +208,15 @@ export default function TrackerScreen() {
             </Text>
           </View>
         )}
+        {/* Edit & Delete Buttons */}
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
+          <Button mode="outlined" compact onPress={() => openEditModal(item)} style={{ marginRight: 8 }}>
+            Edit
+          </Button>
+          <Button mode="contained" compact buttonColor={theme.colors.error} textColor="#fff" onPress={() => openDeleteDialog(item._id)}>
+            Delete
+          </Button>
+        </View>
       </Card.Content>
     </Card>
   );
@@ -169,65 +241,116 @@ export default function TrackerScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text variant="headlineMedium" style={styles.headerTitle}>
-          My Ideas
-        </Text>
-        <Text variant="bodyMedium" style={styles.headerSubtitle}>
-          {filteredIdeas.length} of {userIdeas.length} ideas
-        </Text>
-      </View>
+    <PaperProvider>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text variant="headlineMedium" style={styles.headerTitle}>
+            My Ideas
+          </Text>
+          <Text variant="bodyMedium" style={styles.headerSubtitle}>
+            {filteredIdeas.length} of {userIdeas.length} ideas
+          </Text>
+        </View>
 
-      <View style={styles.filters}>
-        <Searchbar
-          placeholder="Search ideas..."
-          onChangeText={setSearchQuery}
-          value={searchQuery}
-          style={styles.searchbar}
-        />
-        
-        <Menu
-          visible={menuVisible}
-          onDismiss={() => setMenuVisible(false)}
-          anchor={
-            <Button
-              mode="outlined"
-              onPress={() => setMenuVisible(true)}
-              style={styles.filterButton}
-              icon="filter-list"
-            >
-              {STATUS_FILTERS.find(f => f.value === statusFilter)?.label}
-            </Button>
-          }
-        >
-          {STATUS_FILTERS.map((filter) => (
-            <Menu.Item
-              key={filter.value}
-              onPress={() => {
-                setStatusFilter(filter.value);
-                setMenuVisible(false);
-              }}
-              title={filter.label}
+        <View style={styles.filters}>
+          <Searchbar
+            placeholder="Search ideas..."
+            onChangeText={setSearchQuery}
+            value={searchQuery}
+            style={styles.searchbar}
+          />
+          
+          <Menu
+            visible={menuVisible}
+            onDismiss={() => setMenuVisible(false)}
+            anchor={
+              <Button
+                mode="outlined"
+                onPress={() => setMenuVisible(true)}
+                style={styles.filterButton}
+                icon="filter"
+              >
+                {STATUS_FILTERS.find(f => f.value === statusFilter)?.label}
+              </Button>
+            }
+          >
+            {STATUS_FILTERS.map((filter) => (
+              <Menu.Item
+                key={filter.value}
+                onPress={() => {
+                  setStatusFilter(filter.value);
+                  setMenuVisible(false);
+                }}
+                title={filter.label}
+              />
+            ))}
+          </Menu>
+        </View>
+
+        {filteredIdeas.length > 0 ? (
+          <FlatList
+            data={filteredIdeas}
+            renderItem={renderIdeaCard}
+            keyExtractor={(item) => item._id}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+          />
+        ) : (
+          <ScrollView contentContainerStyle={styles.scrollContainer}>
+            {renderEmptyState()}
+          </ScrollView>
+        )}
+        {/* Edit Modal */}
+        <Portal>
+          <Modal visible={editModalVisible} onDismiss={() => setEditModalVisible(false)} contentContainerStyle={{ backgroundColor: 'white', padding: 20, margin: 20, borderRadius: 8 }}>
+            <Text variant="titleMedium" style={{ marginBottom: 12 }}>Edit Idea</Text>
+            <Text>Title</Text>
+            <TextInput
+              value={editForm.title}
+              onChangeText={text => handleEditChange('title', text)}
+              style={{ marginBottom: 8, borderWidth: 1, borderColor: '#ccc', borderRadius: 4, padding: 8 }}
             />
-          ))}
-        </Menu>
-      </View>
-
-      {filteredIdeas.length > 0 ? (
-        <FlatList
-          data={filteredIdeas}
-          renderItem={renderIdeaCard}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-        />
-      ) : (
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          {renderEmptyState()}
-        </ScrollView>
-      )}
-    </SafeAreaView>
+            <Text>Problem</Text>
+            <TextInput
+              value={editForm.problem}
+              onChangeText={text => handleEditChange('problem', text)}
+              style={{ marginBottom: 8, borderWidth: 1, borderColor: '#ccc', borderRadius: 4, padding: 8 }}
+              multiline
+            />
+            <Text>Benefit</Text>
+            <TextInput
+              value={editForm.benefit}
+              onChangeText={text => handleEditChange('benefit', text)}
+              style={{ marginBottom: 8, borderWidth: 1, borderColor: '#ccc', borderRadius: 4, padding: 8 }}
+            />
+            <Text>Estimated Savings</Text>
+            <TextInput
+              value={editForm.estimatedSavings}
+              onChangeText={text => handleEditChange('estimatedSavings', text)}
+              style={{ marginBottom: 16, borderWidth: 1, borderColor: '#ccc', borderRadius: 4, padding: 8 }}
+              keyboardType="numeric"
+            />
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+              <Button onPress={() => setEditModalVisible(false)} style={{ marginRight: 8 }} disabled={editLoading}>Cancel</Button>
+              <Button mode="contained" onPress={handleEditSubmit} loading={editLoading} disabled={editLoading}>Save</Button>
+            </View>
+          </Modal>
+        </Portal>
+        {/* Delete Confirmation Dialog */}
+        <Portal>
+          <Dialog visible={deleteDialogVisible} onDismiss={() => setDeleteDialogVisible(false)}>
+            <Dialog.Title>Delete Idea</Dialog.Title>
+            <Dialog.Content>
+              <Text>Are you sure you want to delete this idea? This action cannot be undone.</Text>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setDeleteDialogVisible(false)} disabled={deleteLoading}>Cancel</Button>
+              <Button onPress={handleDeleteConfirm} loading={deleteLoading} disabled={deleteLoading} textColor={theme.colors.error}>Delete</Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
+      </SafeAreaView>
+    </PaperProvider>
   );
 }
 

@@ -53,49 +53,22 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  const login = async (employeeNumber, otp) => {
-    // Mock authentication
-    const mockUsers = {
-      '12345': {
-        id: '1',
-        employeeNumber: '12345',
-        name: 'John Doe',
-        department: 'Engineering',
-        designation: 'Senior Engineer',
-        role: 'employee',
-        email: 'john.doe@company.com',
-      },
-      '67890': {
-        id: '2',
-        employeeNumber: '67890',
-        name: 'Jane Smith',
-        department: 'Quality',
-        designation: 'Quality Manager',
-        role: 'reviewer',
-        email: 'jane.smith@company.com',
-      },
-      '11111': {
-        id: '3',
-        employeeNumber: '11111',
-        name: 'Admin User',
-        department: 'Management',
-        designation: 'Kaizen Coordinator',
-        role: 'admin',
-        email: 'admin@company.com',
-      },
-    };
-
-    if (mockUsers[employeeNumber] && otp === '1234') {
-      const user = mockUsers[employeeNumber];
+  const login = async (loginResponse) => {
+    try {
+      const { token, user } = loginResponse.data;
       await AsyncStorage.setItem('user', JSON.stringify(user));
+      await AsyncStorage.setItem('token', token);
       dispatch({ type: 'LOGIN', payload: user });
       return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
     }
-    return false;
   };
 
   const logout = async () => {
     await AsyncStorage.removeItem('user');
+    await AsyncStorage.removeItem('token');
     dispatch({ type: 'LOGOUT' });
   };
 

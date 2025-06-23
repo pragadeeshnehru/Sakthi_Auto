@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
   ScrollView,
   FlatList,
+  Dimensions,
 } from 'react-native';
 import {
   Text,
@@ -16,137 +17,65 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useUser } from '../../context/UserContext';
-import { useIdeas } from '../../context/IdeaContext';
+import api from '../../utils/api';
 import { theme, spacing } from '../../utils/theme';
 
-const MOCK_USERS = [
-  { employeeNumber: '12345', name: 'John Doe', department: 'Engineering' },
-  { employeeNumber: '67890', name: 'Jane Smith', department: 'Quality' },
-  { employeeNumber: '11111', name: 'Admin User', department: 'Management' },
-  { employeeNumber: '22222', name: 'Alice Johnson', department: 'Manufacturing' },
-  { employeeNumber: '33333', name: 'Bob Wilson', department: 'Engineering' },
-  { employeeNumber: '44444', name: 'Carol Brown', department: 'Quality' },
-];
-
-const MOCK_DEPARTMENTS = [
-  'Engineering',
-  'Quality', 
-  'Manufacturing',
-  'Management',
-  'Administration',
-];
+const { width } = Dimensions.get('window');
 
 export default function LeaderboardScreen() {
   const { user } = useUser();
-  const { ideas } = useIdeas();
   const [viewMode, setViewMode] = useState('individual');
+  const [individualStats, setIndividualStats] = useState([]);
+  const [departmentStats, setDepartmentStats] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Calculate individual stats
-  const getIndividualStats = () => {
-    const userStats = MOCK_USERS.map(userData => {
-      const userIdeas = ideas.filter(idea => idea.submittedBy === userData.employeeNumber);
-      const approvedIdeas = userIdeas.filter(idea => idea.status === 'approved');
-      const implementedIdeas = userIdeas.filter(idea => idea.status === 'implementing');
-      
-      // Add some mock variation to make leaderboard more interesting
-      const mockBonus = parseInt(userData.employeeNumber) % 3;
-      
-      return {
-        ...userData,
-        totalIdeas: userIdeas.length + mockBonus,
-        approvedIdeas: approvedIdeas.length + Math.floor(mockBonus / 2),
-        implementedIdeas: implementedIdeas.length + Math.floor(mockBonus / 3),
-        score: (approvedIdeas.length * 10) + (implementedIdeas.length * 20) + (userIdeas.length * 5) + (mockBonus * 15),
-      };
-    }).sort((a, b) => b.score - a.score);
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      setLoading(true);
+      try {
+        // Individual leaderboard
+        const resInd = await api.get('/api/users/leaderboard?type=individual');
+        setIndividualStats(resInd.data.data.leaderboard || []);
+        // Department leaderboard
+        const resDept = await api.get('/api/users/leaderboard?type=department');
+        setDepartmentStats(resDept.data.data.departmentLeaderboard || []);
+      } catch (error) {
+        console.error('Error loading leaderboard:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLeaderboard();
+  }, []);
 
-    return userStats;
-  };
-
-  // Calculate department stats
-  const getDepartmentStats = () => {
-    const deptStats = MOCK_DEPARTMENTS.map(dept => {
-      const deptUsers = MOCK_USERS.filter(u => u.department === dept);
-      const deptIdeas = ideas.filter(idea => 
-        deptUsers.some(u => u.employeeNumber === idea.submittedBy)
-      );
-      const approvedIdeas = deptIdeas.filter(idea => idea.status === 'approved');
-      const implementedIdeas = deptIdeas.filter(idea => idea.status === 'implementing');
-      
-      // Add mock data for departments
-      const mockMultiplier = dept.length % 3 + 1;
-      
-      return {
-        department: dept,
-        employeeCount: deptUsers.length,
-        totalIdeas: deptIdeas.length + mockMultiplier,
-        approvedIdeas: approvedIdeas.length + Math.floor(mockMultiplier / 2),
-        implementedIdeas: implementedIdeas.length + Math.floor(mockMultiplier / 3),
-        avgIdeasPerEmployee: Math.round(((deptIdeas.length + mockMultiplier) / deptUsers.length) * 10) / 10,
-      };
-    }).sort((a, b) => b.totalIdeas - a.totalIdeas);
-
-    return deptStats;
-  };
-
-  const individualStats = getIndividualStats();
-  const departmentStats = getDepartmentStats();
   const currentUserRank = individualStats.findIndex(stat => stat.employeeNumber === user?.employeeNumber) + 1;
 
   const renderIndividualRankItem = ({ item, index }) => {
     const isCurrentUser = item.employeeNumber === user?.employeeNumber;
     const rankColor = index < 3 ? ['#FFD700', '#C0C0C0', '#CD7F32'][index] : theme.colors.onSurfaceVariant;
-    
     return (
       <Card style={[
         styles.rankCard,
         isCurrentUser && styles.currentUserCard
       ]}>
-        <Card.Content style={styles.rankContent}>
-          <View style={styles.rankLeft}>
-            <Surface style={[styles.rankBadge, { backgroundColor: rankColor }]}>
-              <Text variant="titleMedium" style={styles.rankNumber}>
-                {index + 1}
-              </Text>
-            </Surface>
-            
-            <Avatar.Text 
-              size={40} 
-              label={item.name.split(' ').map(n => n[0]).join('')}
-              style={styles.userAvatar}
-            />
-            
-            <View style={styles.userInfo}>
-              <Text variant="titleMedium" style={[
-                styles.userName,
-                isCurrentUser && styles.currentUserText
-              ]}>
-                {item.name} {isCurrentUser && '(You)'}
-              </Text>
-              <Text variant="bodySmall" style={styles.userDepartment}>
-                {item.department}
-              </Text>
-            </View>
-          </View>
-          
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text variant="titleSmall" style={styles.statNumber}>
-                {item.totalIdeas}
-              </Text>
-              <Text variant="bodySmall" style={styles.statLabel}>
-                Ideas
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text variant="titleSmall" style={[styles.statNumber, { color: theme.colors.success }]}>
-                {item.implementedIdeas}
-              </Text>
-              <Text variant="bodySmall" style={styles.statLabel}>
-                Implemented
-              </Text>
-            </View>
-          </View>
+        <Card.Content style={styles.rankContentCompact}>
+          <Surface style={[styles.rankBadgeCompact, { backgroundColor: rankColor }]}> 
+            <Text variant="titleSmall" style={styles.rankNumberCompact}>
+              {index + 1}
+            </Text>
+          </Surface>
+          <Avatar.Text 
+            size={32} 
+            label={item.name.split(' ').map(n => n[0]).join('')}
+            style={styles.userAvatarCompact}
+          />
+          <Text style={[styles.userNameCompact, isCurrentUser && styles.currentUserText]} numberOfLines={1}>
+            {item.name.split(' ')[0]}{isCurrentUser ? ' (You)' : ''}
+          </Text>
+          <MaterialIcons name="emoji-events" size={18} color={theme.colors.primary} style={{ marginHorizontal: 4 }} />
+          <Text style={styles.statNumberCompact}>{item.totalIdeas}</Text>
+          <MaterialIcons name="check-circle" size={18} color={theme.colors.success} style={{ marginHorizontal: 4 }} />
+          <Text style={styles.statNumberCompact}>{item.implementedIdeas}</Text>
         </Card.Content>
       </Card>
     );
@@ -154,50 +83,26 @@ export default function LeaderboardScreen() {
 
   const renderDepartmentRankItem = ({ item, index }) => (
     <Card style={styles.rankCard}>
-      <Card.Content style={styles.rankContent}>
-        <View style={styles.rankLeft}>
-          <Surface style={[styles.rankBadge, { 
-            backgroundColor: index < 3 ? ['#FFD700', '#C0C0C0', '#CD7F32'][index] : theme.colors.onSurfaceVariant 
-          }]}>
-            <Text variant="titleMedium" style={styles.rankNumber}>
-              {index + 1}
-            </Text>
-          </Surface>
-          
-          <Avatar.Icon 
-            size={40} 
-            icon="business"
-            style={styles.deptAvatar}
-          />
-          
-          <View style={styles.userInfo}>
-            <Text variant="titleMedium" style={styles.userName}>
-              {item.department}
-            </Text>
-            <Text variant="bodySmall" style={styles.userDepartment}>
-              {item.employeeCount} employees
-            </Text>
-          </View>
-        </View>
-        
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text variant="titleSmall" style={styles.statNumber}>
-              {item.totalIdeas}
-            </Text>
-            <Text variant="bodySmall" style={styles.statLabel}>
-              Total Ideas
-            </Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text variant="titleSmall" style={[styles.statNumber, { color: theme.colors.tertiary }]}>
-              {item.avgIdeasPerEmployee}
-            </Text>
-            <Text variant="bodySmall" style={styles.statLabel}>
-              Avg/Employee
-            </Text>
-          </View>
-        </View>
+      <Card.Content style={styles.rankContentCompact}>
+        <Surface style={[styles.rankBadgeCompact, { 
+          backgroundColor: index < 3 ? ['#FFD700', '#C0C0C0', '#CD7F32'][index] : theme.colors.onSurfaceVariant 
+        }]}> 
+          <Text variant="titleSmall" style={styles.rankNumberCompact}>
+            {index + 1}
+          </Text>
+        </Surface>
+        <Avatar.Icon 
+          size={32} 
+          icon="business"
+          style={styles.deptAvatarCompact}
+        />
+        <Text style={styles.userNameCompact} numberOfLines={1}>
+          {item._id || item.department}
+        </Text>
+        <MaterialIcons name="groups" size={18} color={theme.colors.tertiary} style={{ marginHorizontal: 4 }} />
+        <Text style={styles.statNumberCompact}>{item.employeeCount || ''}</Text>
+        <MaterialIcons name="lightbulb" size={18} color={theme.colors.primary} style={{ marginHorizontal: 4 }} />
+        <Text style={styles.statNumberCompact}>{item.totalIdeas}</Text>
       </Card.Content>
     </Card>
   );
@@ -218,7 +123,6 @@ export default function LeaderboardScreen() {
           </Chip>
         )}
       </View>
-
       <View style={styles.segmentContainer}>
         <SegmentedButtons
           value={viewMode}
@@ -237,16 +141,17 @@ export default function LeaderboardScreen() {
           ]}
         />
       </View>
-
-      <FlatList
-        data={viewMode === 'individual' ? individualStats : departmentStats}
-        renderItem={viewMode === 'individual' ? renderIndividualRankItem : renderDepartmentRankItem}
-        keyExtractor={(item, index) => 
-          viewMode === 'individual' ? item.employeeNumber : item.department
-        }
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-      />
+      <ScrollView horizontal={false} contentContainerStyle={styles.scrollContainer}>
+        <FlatList
+          data={viewMode === 'individual' ? individualStats : departmentStats}
+          renderItem={viewMode === 'individual' ? renderIndividualRankItem : renderDepartmentRankItem}
+          keyExtractor={(item, index) => 
+            viewMode === 'individual' ? item.employeeNumber : (item._id || item.department)
+          }
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+        />
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -260,90 +165,81 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     backgroundColor: theme.colors.surface,
     elevation: 2,
-    alignItems: 'center',
   },
   headerTitle: {
     fontWeight: 'bold',
     color: theme.colors.onSurface,
-    marginBottom: spacing.sm,
   },
   rankChip: {
-    backgroundColor: theme.colors.tertiaryContainer,
+    marginTop: spacing.sm,
+    alignSelf: 'flex-start',
   },
   segmentContainer: {
-    padding: spacing.lg,
-    backgroundColor: theme.colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+  },
+  scrollContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    minWidth: width,
   },
   list: {
-    padding: spacing.lg,
     paddingBottom: spacing.xl,
   },
   rankCard: {
     marginBottom: spacing.md,
+    width: '100%',
+    alignSelf: 'center',
     elevation: 2,
   },
   currentUserCard: {
     borderWidth: 2,
     borderColor: theme.colors.primary,
   },
-  rankContent: {
+  rankContentCompact: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+    minHeight: 0,
   },
-  rankLeft: {
-    flexDirection: 'row',
+  rankBadgeCompact: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
-    flex: 1,
-  },
-  rankBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-    elevation: 2,
+    marginRight: spacing.sm,
   },
-  rankNumber: {
-    color: '#FFFFFF',
+  rankNumberCompact: {
     fontWeight: 'bold',
+    color: theme.colors.onPrimary,
+    fontSize: 14,
   },
-  userAvatar: {
+  userAvatarCompact: {
+    marginRight: spacing.sm,
     backgroundColor: theme.colors.primary,
-    marginRight: spacing.md,
   },
-  deptAvatar: {
-    backgroundColor: theme.colors.secondary,
-    marginRight: spacing.md,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
+  userNameCompact: {
     fontWeight: 'bold',
     color: theme.colors.onSurface,
+    fontSize: 14,
+    maxWidth: 70,
+    flexShrink: 1,
   },
   currentUserText: {
     color: theme.colors.primary,
   },
-  userDepartment: {
-    color: theme.colors.onSurfaceVariant,
-    marginTop: 2,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    gap: spacing.lg,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statNumber: {
+  statNumberCompact: {
     fontWeight: 'bold',
     color: theme.colors.primary,
-  },
-  statLabel: {
-    color: theme.colors.onSurfaceVariant,
+    fontSize: 14,
+    minWidth: 20,
     textAlign: 'center',
+  },
+  deptAvatarCompact: {
+    marginRight: spacing.sm,
+    backgroundColor: theme.colors.secondary,
   },
 });

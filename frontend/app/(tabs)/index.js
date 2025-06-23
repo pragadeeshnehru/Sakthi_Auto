@@ -28,7 +28,7 @@ export default function HomeScreen() {
   const { user } = useUser();
   const { ideas } = useIdeas();
 
-  const userIdeas = ideas.filter(idea => idea.submittedBy === user?.employeeNumber);
+  const userIdeas = ideas.filter(idea => idea.submittedBy?.employeeNumber === user?.employeeNumber);
   const approvedIdeas = userIdeas.filter(idea => idea.status === 'approved');
   const pendingIdeas = userIdeas.filter(idea => idea.status === 'under_review');
   const implementedIdeas = ideas.filter(idea => idea.status === 'implementing' || idea.status === 'implemented');
@@ -147,14 +147,14 @@ export default function HomeScreen() {
           </Text>
           
           {userIdeas.slice(0, 3).map((idea) => (
-            <Card key={idea.id} style={styles.activityCard}>
+            <Card key={idea._id || idea.id} style={styles.activityCard}>
               <Card.Content style={styles.activityContent}>
                 <View style={styles.activityInfo}>
                   <Text variant="titleMedium" style={styles.activityTitle}>
                     {idea.title}
                   </Text>
                   <Text variant="bodySmall" style={styles.activityDate}>
-                    {idea.submittedDate}
+                    {idea.createdAt ? new Date(idea.createdAt).toLocaleDateString() : ''}
                   </Text>
                 </View>
                 <Badge 
